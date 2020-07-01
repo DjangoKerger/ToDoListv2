@@ -3,7 +3,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
-const date = require(__dirname + "/date.js");
+//const date = require(__dirname + "/date.js");
 
 const app = express();
 
@@ -12,7 +12,7 @@ app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(express.static("public"));
 
-mongoose.connect("mongodb://localhost:27017/todolistDB", { useUnifiedTopology: true });
+mongoose.connect("mongodb://localhost:27017/todolistDB", { useNewUrlParser: true });
 
 const itemsSchema = {
   name: String
@@ -34,36 +34,69 @@ const item3 = new Item({
 
 const defaultItems = [item1, item2, item3];
 
-Item.insertMany(defaultItems, function(err){
-  if (err) {
-    console.log(err);
-  } else {
-    console.log("saved succesfully");
-  }
-});
+const listSchema = {
+  name: String,
+  items: [itemsSchema]
+};
+
+const List = mongoose.model("List", listSchema);
+
+
 
 
 app.get("/", function(req, res) {
 
 // const day = date.getDate();
 
+    Item.find({}, function(err, foundItems){
 
-  res.render("list", {listTitle: "Today", newListItems: items});
-
+      if (foundItems.length === 0){
+        Item.insertMany(defaultItems, function(err){
+          if (err) {
+            console.log(err);
+          } else {
+            console.log("saved succesfully");
+          }
+        });
+        res.redirect("/");
+      } else {
+        res.render("list", {listTitle: "Today", newListItems: foundItems});
+      }
+    });
 });
 
 app.post("/", function(req, res){
 
-  const item = req.body.newItem;
+  const itemName = req.body.newItem;
+  const item = new Item({
+    name: itemName
+  });
 
-  if (req.body.list === "Work") {
-    workItems.push(item);
-    res.redirect("/work");
-  } else {
-    items.push(item);
-    res.redirect("/");
-  }
+  item.save();
+  res.redirect("/");
 });
+
+app.post("/delete", function(req, res){
+  const checkedItemId = req.body.checkbox;
+
+    Item.findByIdAndRemove(checkedItemId, function(err){
+      if (!err) {
+        console.log("Successfully deleted checked item.");
+        res.redirect("/");
+      }
+    });
+  })
+
+// app.post("/delete", function(req, res){
+//   const checkedItemdId = req.body.checkbox;
+
+//   Item.findByIdAndRemove(checkedItemdId, function(err){
+//     if (!err) {
+//       console.log("succesfully deleted checked item");
+//       res.redirect("/");
+//     }
+//   })
+// });
 
 app.get("/work", function(req,res){
   res.render("list", {listTitle: "Work List", newListItems: workItems});
